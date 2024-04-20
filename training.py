@@ -1,36 +1,113 @@
-"""
-This is an example script to train your model given the (cleaned) input dataset.
+import joblib
+import numpy as np
+import pandas as pd
+import optuna
+from pathlib import Path
+from catboost import CatBoostClassifier
+from sklearn.model_selection import StratifiedKFold, cross_validate
+from tqdm import tqdm
 
-This script will not be run on the holdout data, 
-but the resulting model model.joblib will be applied to the holdout data.
+from submission import clean_df
 
-It is important to document your training steps here, including seed, 
-number of folds, model, et cetera
-"""
-
-def train_save_model(cleaned_df, outcome_df):
+def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame)-> None:
     """
-    Trains a model using the cleaned dataframe and saves the model to a file.
+    Train and tune a CatBoostClassifier model on the baseline + background features and save it.
 
-    Parameters:
-    cleaned_df (pd.DataFrame): The cleaned data from clean_df function to be used for training the model.
-    outcome_df (pd.DataFrame): The data with the outcome variable (e.g., from PreFer_train_outcome.csv or PreFer_fake_outcome.csv).
+    Args:
+        cleaned_df (pd.DataFrame): Cleaned data dataframe.
+        outcome_df (pd.DataFrame): Dataframe with the outcome variable.
+        model_name (str, optional): Name of the model. Defaults to 'baseline'.
+
+    Returns:
+        None
     """
-    
-    ## This script contains a bare minimum working example
-    random.seed(1) # not useful here because logistic regression deterministic
-    
-    # Combine cleaned_df and outcome_df
+    # prepare input data
     model_df = pd.merge(cleaned_df, outcome_df, on="nomem_encr")
-
-    # Filter cases for whom the outcome is not available
-    model_df = model_df[~model_df['new_child'].isna()]  
+    features = [c for c in model_df.columns if c not in ['nomem_encr', 'new_child']]
+    cat_features = [col for col in features if col.endswith('_ds')]
     
-    # Logistic regression model
-    model = LogisticRegression()
+    # def objective(trial):
+    
+    #     # trial parameters
+    #     params = {
+    #         'num_trees': trial.suggest_int('num_trees', 100, 1000),
+    #         'learning_rate' : trial.suggest_float('learning_rate', 0.001, 0.1),
+    #         'max_depth' : trial.suggest_int('max_depth', 4, 10),
+    #         'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.6, 0.9),
+    #         'auto_class_weights': trial.suggest_categorical('auto_class_weights', ['None', 'Balanced', 'SqrtBalanced'])
+    #     }
 
-    # Fit the model
-    model.fit(model_df[['age']], model_df['new_child'])
+    #     model = CatBoostClassifier(cat_features=cat_features, **params)
 
-    # Save the model
-    joblib.dump(model, "model.joblib")
+    #     # define cross validation and metrics
+    #     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        
+    #     # perform cross validation 
+    #     cv_results = cross_validate(model, model_df[features], model_df['new_child'], cv=cv, scoring='f1', params={'verbose_eval':500})
+    #     score = np.mean(cv_results['test_score'])
+
+    #     return score
+
+    # # create study
+    # sampler = optuna.samplers.TPESampler(seed=42)
+    # max_trials = 20
+    # time_limit = 3600 * 0.5
+
+    # study = optuna.create_study(
+    #     sampler=sampler,
+    #     study_name= f'model_optimization',
+    #     direction='maximize')
+
+    # # perform optimization
+    # print(f'Starting model optimization...')
+    # study.optimize(
+    #     objective,
+    #     n_trials=max_trials,
+    #     timeout=time_limit,
+    #     show_progress_bar=True
+    # )
+
+    # # optimization results
+    # print(f"\nNumber of finished trials: {len(study.trials)}")
+    # print(f"Best score: {study.best_value}")
+
+    # best_params = study.best_params
+    best_params = {
+        'num_trees': 563,
+        'learning_rate': 0.0703433382674376,
+        'max_depth': 6,
+        'colsample_bylevel': 0.8448842308666811,
+        'auto_class_weights': 'Balanced'} 
+
+    # model
+    model = CatBoostClassifier(cat_features=cat_features, random_state=42, **best_params)
+
+    # fit the model
+    model.fit(model_df[features], model_df['new_child'], verbose_eval=100)
+
+    # save the model and params
+    joblib.dump(model, f"model.joblib")
+    joblib.dump(best_params, f"model__best_params.joblib")
+
+
+if __name__ == '__main__':
+
+    data_dir = Path('../prefer_data')
+
+    # import data
+    print('Loading data...')
+    chunk_list = []
+    for chunk in tqdm(pd.read_csv(data_dir / 'training_data/PreFer_train_data.csv', chunksize=1000, low_memory=False, usecols=["nomem_encr", "outcome_available"])):
+        chunk_list.append(chunk)
+    raw_df = pd.concat(chunk_list, axis=0)
+    
+    outcome_df = pd.read_csv(data_dir / 'training_data/PreFer_train_outcome.csv', low_memory=False)
+    background_df = pd.read_csv(data_dir / 'other_data/PreFer_train_background_data.csv', low_memory=False)
+
+    # clean data
+    print('Cleaning data...')
+    cleaned_df = clean_df(df=raw_df, background_df=background_df)
+    
+    # train and save model
+    print(f'Training model...')
+    train_save_model(cleaned_df=cleaned_df, outcome_df=outcome_df)
