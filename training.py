@@ -30,10 +30,9 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame)-> None:
     
     #     # trial parameters
     #     params = {
-    #         'num_trees': trial.suggest_int('num_trees', 100, 1000),
+    #         'num_trees': trial.suggest_int('num_trees', 100, 500),
     #         'learning_rate' : trial.suggest_float('learning_rate', 0.001, 0.1),
-    #         'max_depth' : trial.suggest_int('max_depth', 4, 10),
-    #         'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.6, 0.9),
+    #         'max_depth' : trial.suggest_int('max_depth', 3, 10),
     #         'auto_class_weights': trial.suggest_categorical('auto_class_weights', ['None', 'Balanced', 'SqrtBalanced'])
     #     }
 
@@ -50,8 +49,8 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame)-> None:
 
     # # create study
     # sampler = optuna.samplers.TPESampler(seed=42)
-    # max_trials = 20
-    # time_limit = 3600 * 0.5
+    # max_trials = 50
+    # time_limit = 3600 * 1
 
     # study = optuna.create_study(
     #     sampler=sampler,
@@ -73,11 +72,11 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame)-> None:
 
     # best_params = study.best_params
     best_params = {
-        'num_trees': 563,
-        'learning_rate': 0.0703433382674376,
-        'max_depth': 6,
-        'colsample_bylevel': 0.8448842308666811,
-        'auto_class_weights': 'Balanced'} 
+        'num_trees': 328,
+        'learning_rate': 0.05592430017269105,
+        'max_depth': 7,
+        'auto_class_weights': 'Balanced'
+    }
 
     # model
     model = CatBoostClassifier(cat_features=cat_features, random_state=42, **best_params)
