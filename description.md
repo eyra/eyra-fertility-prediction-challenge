@@ -2,7 +2,7 @@
 
 ## Modeling Procedure
 
-This project employs a machine learning approach to predict the likelihood of an individual having a child during 2021-2023 using LISS data. The modeling procedure involves the following steps:
+This project employs a machine learning approach to predict the likelihood of an individual having a child during 2021-2023 using the LISS panel data. The modeling procedure involves the following steps:
 
 - data preparation:
     - clean and preproce the raw data
