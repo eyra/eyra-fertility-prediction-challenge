@@ -96,7 +96,7 @@ if __name__ == '__main__':
     # import data
     print('Loading data...')
     chunk_list = []
-    for chunk in tqdm(pd.read_csv(data_dir / 'training_data/PreFer_train_data.csv', chunksize=1000, low_memory=False, usecols=["nomem_encr", "outcome_available"])):
+    for chunk in tqdm(pd.read_csv(data_dir / 'training_data/PreFer_train_data.csv', chunksize=1000, low_memory=False)):
         chunk_list.append(chunk)
     raw_df = pd.concat(chunk_list, axis=0)
     

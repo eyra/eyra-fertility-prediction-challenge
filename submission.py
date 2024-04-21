@@ -6,65 +6,58 @@ def clean_df(df, background_df=None):
 
     # keep rows with available outcome
     df = df[df['outcome_available']==1]
+    
+    features = [
+        'nomem_encr',
+
+        # family
+        'cf20m005',
+        'cf20m007',
+        'cf20m008',
+        'cf20m009',
+        'cf20m011',
+        'cf20m012',
+        'cf20m013',
+        'cf20m014',
+        'cf20m015',
+        'cf20m016',
+        'cf20m018',
+        'cf20m019',
+        'cf20m020',
+        'cf20m022',
+        'cf20m024',
+        'cf20m025',
+        'cf20m026',
+        'cf20m027',
+        'cf20m028',
+        'cf20m029',
+        'cf20m030',
+        'cf20m031',
+        'cf20m032',
+        'cf20m033',
+        'cf20m034',
+        'cf20m128',
+        'cf20m129',
+        'cf20m130',
+        'cf20m166',
+        'cf20m180',
+        'cf20m181',
+    ]
+
+    # add survey
+    df = df[features]
 
     # process background df
     background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201101)
-    background_features = [col for col in background_df_processed.columns if not col.endswith('_ds')]
-    background_df_processed = background_df_processed[background_features]
 
-    # merge with trai data
+    # merge preprocessed info with train data
     df = pd.merge(df, background_df_processed, on='nomem_encr', how='left')
 
-    # select variables for modelling
-    features = [
+    # input missing for categorical features
+    features = df.columns.tolist()
+    cat_features = [col for col in features if col.endswith('_ds')]
+    df[cat_features] = df[cat_features].fillna('missing')
 
-        # id
-        "nomem_encr",
-
-        # background variables
-        'gender_qt',
-        'age_qt',
-        'origin_qt',
-        
-        'is_household_lead_fl',
-        'max_position_within_the_household_qt',
-        'household_head_age_qt',
-        'actual_number_of_household_members_qt',
-        'min_number_of_household_members_qt',
-        'max_number_of_household_members_qt',
-        'number_of_household_members_increase_fl',
-        'actual_number_of_household_children_qt',
-        'min_number_of_household_children_qt',
-        'max_number_of_household_children_qt',
-        'number_of_household_children_increase_fl',
-        'has_partner_now_fl',
-        'got_married_fl',
-        'married_now_fl',
-        'actual_civil_status_qt',
-        
-        'actual_domestic_situation_qt',
-        'actual_dwelling_qt',
-        'actual_urban_type_qt',
-        'actual_occupation_type_qt',
-        'actual_personal_gross_monthly_income_qt',
-        'actual_personal_gross_monthly_income_med_qt',
-        'actual_personal_gross_monthly_income_std_qt',
-        'actual_personal_gross_monthly_income_descr_qt',
-        'actual_personal_net_monthly_income_qt',
-        'actual_personal_net_monthly_income_med_qt',
-        'actual_personal_net_monthly_income_std_qt',
-        'actual_personal_net_monthly_income_descr_qt',
-        'actual_household_gross_monthly_income_qt',
-        'actual_household_gross_monthly_income_med_qt',
-        'actual_household_gross_monthly_income_std_qt',
-        'actual_household_net_monthly_income_qt',
-        'actual_household_net_monthly_income_med_qt',
-        'actual_household_net_monthly_income_std_qt',
-        'actual_education_qt',
-        'got_degree_fl'
-    ] 
-
-    # keep data with variables selected
     df = df[features]
 
     return df
@@ -133,8 +126,7 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
     """
 
     # filter for names in training data and after wave filter
-    train_df_filter = train_df[train_df['outcome_available'] == 1]
-    df = background_df[background_df['nomem_encr'].isin(train_df_filter['nomem_encr'])]
+    df = background_df[background_df['nomem_encr'].isin(train_df['nomem_encr'])]
     df = df[df['wave'] > wave_filter]
     df = df.sort_values(by='wave')
 
@@ -146,6 +138,17 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
     f_std = lambda x: x.dropna().std()                      # get the standard deviation of the series
     f_inc = lambda x: (x.max() > x.min())*1.0               # did the series increase value?
     f_educ = lambda x: (x.max() == 6 and x.min() < 6)*1.0   # did the suject get a degree?
+    def f_check_sequence(lst):                              # separated and got new partner?
+        seen_one = 0
+        seen_zero_after_one = 0
+        for val in lst:
+            if val == 1:
+                seen_one = 1
+            elif val == 0 and seen_one == 1:
+                seen_zero_after_one = 1
+            if seen_zero_after_one == 1 and val == 1:
+                return 1
+        return 0
 
     f_min_equal_one = lambda x: (x.min() == 1)*1.0                    # flag if minimum is equal to one (positie, burgstat)
     f_got_married = lambda x: (x.min() == 1 and x.max() == 5)*1.0     # flag for marriage during obsevation period (burgstat)
@@ -235,16 +238,16 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'gender_imp': [f_actual],                                                          # gender
         'age_imp': [f_actual],                                                             # age
         'migration_background_imp': [f_actual, f_map_origin],                              # origin
-        'positie': [f_min_equal_one, f_max],                                               # position within the household
+        'positie': [f_min_equal_one, f_max, f_std],                                        # position within the household
         'lftdhhh': [f_actual],                                                             # age of the household head
-        'aantalhh': [f_actual, f_min, f_max, f_inc],                                       # number of household members
-        'aantalki': [f_actual, f_min, f_max, f_inc],                                       # number of household children
-        'partner': [f_max],                                                                # the household head lives together with a partner
-        'burgstat': [f_got_married, f_min_equal_one, f_actual, f_map_civil_status],        # civil status
+        'aantalhh': [f_actual, f_min, f_max, f_inc, f_std],                                # number of household members
+        'aantalki': [f_actual, f_min, f_max, f_inc, f_std],                                # number of household children
+        'partner': [f_max, lambda x: f_check_sequence(x)],                                 # the household head lives together with a partner
+        'burgstat': [f_got_married, f_min_equal_one, f_actual, f_map_civil_status, f_std], # civil status
         'woonvorm': [f_actual, f_map_domestic_situation],                                  # Domestic situation
-        'woning': [f_actual, f_map_dwelling],                                              # type of dwelling that the household inhabits
+        'woning': [f_actual, f_map_dwelling, f_std],                                       # type of dwelling that the household inhabits
         'sted': [f_actual, f_map_urban_type],                                              # urban character of place of residence
-        'belbezig': [f_actual, f_map_occupation_type],                                     # primary occupation
+        'belbezig': [f_actual, f_map_occupation_type, f_std],                              # primary occupation
         'brutoink_f': [f_actual, f_med, f_std],                                            # personal gross monthly income in Euros, imputed
         'brutocat': [f_actual, f_map_income],                                              # personal gross monthly income in categories
         'nettoink_f': [f_actual, f_med, f_std],                                            # personal net monthly income in Euros, imputed
@@ -252,7 +255,7 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'brutohh_f': [f_actual, f_med, f_std],                                             # gross household income in Euros
         'nettohh_f': [f_actual, f_med, f_std],                                             # net household income in Euros
         # 'oplzon': [f_actual, f_map_education],                                           # highest level of education irrespective of diploma
-        'oplmet': [f_actual, f_map_education, f_educ],                                     # highest level of education with diploma
+        'oplmet': [f_actual, f_map_education, f_educ, f_std],                              # highest level of education with diploma
         # 'oplcat': [f_actual, f_map_education],                                           # level of education in CBS (Statistics Netherlands) categories
     })
 
@@ -265,28 +268,35 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'migration_background_imp_<lambda_1>': 'origin_ds',
         'positie_<lambda_0>': 'is_household_lead_fl',
         'positie_<lambda_1>': 'max_position_within_the_household_qt',
+        'positie_<lambda_2>': 'position_within_the_household_variation_qt',
         'lftdhhh_<lambda>': 'household_head_age_qt',
         'aantalhh_<lambda_0>': 'actual_number_of_household_members_qt',
         'aantalhh_<lambda_1>': 'min_number_of_household_members_qt',
         'aantalhh_<lambda_2>': 'max_number_of_household_members_qt',
         'aantalhh_<lambda_3>': 'number_of_household_members_increase_fl',
+        'aantalhh_<lambda_4>': 'number_of_household_members_variation_qt',
         'aantalki_<lambda_0>': 'actual_number_of_household_children_qt',
         'aantalki_<lambda_1>': 'min_number_of_household_children_qt',
         'aantalki_<lambda_2>': 'max_number_of_household_children_qt',
         'aantalki_<lambda_3>': 'number_of_household_children_increase_fl',
-        'partner_<lambda>': 'has_partner_now_fl',
+        'aantalki_<lambda_4>': 'number_of_household_children_variation_qt',
+        'partner_<lambda_0>': 'has_partner_now_fl',
+        'partner_<lambda_1>': 'got_separated_fl',
         'burgstat_<lambda_0>': 'got_married_fl',
         'burgstat_<lambda_1>': 'married_now_fl',
         'burgstat_<lambda_2>': 'actual_civil_status_qt',
         'burgstat_<lambda_3>': 'actual_civil_status_ds',
+        'burgstat_<lambda_4>': 'actual_civil_status_variation_qt',
         'woonvorm_<lambda_0>': 'actual_domestic_situation_qt',
         'woonvorm_<lambda_1>': 'actual_domestic_situation_ds',
         'woning_<lambda_0>': 'actual_dwelling_qt',
         'woning_<lambda_1>': 'actual_dwelling_ds',
+        'woning_<lambda_2>': 'dwelling_variation_qt',
         'sted_<lambda_0>': 'actual_urban_type_qt',
         'sted_<lambda_1>': 'actual_urban_type_ds',
         'belbezig_<lambda_0>': 'actual_occupation_type_qt',
         'belbezig_<lambda_1>': 'actual_occupation_type_ds',
+        'belbezig_<lambda_2>': 'occupation_type_variation_qt',
         'brutoink_f_<lambda_0>': 'actual_personal_gross_monthly_income_qt',
         'brutoink_f_<lambda_1>': 'actual_personal_gross_monthly_income_med_qt',
         'brutoink_f_<lambda_2>': 'actual_personal_gross_monthly_income_std_qt',
@@ -306,6 +316,7 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'oplmet_<lambda_0>': 'actual_education_qt',
         'oplmet_<lambda_1>': 'actual_education_ds',
         'oplmet_<lambda_2>': 'got_degree_fl',
+        'oplmet_<lambda_3>': 'education_variation_qt',
     })
 
     return out
