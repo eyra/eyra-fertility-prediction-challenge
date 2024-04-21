@@ -5,3 +5,4 @@
 .LSOverride
 __pycache__/
 .tool-versions
+catboost_info
