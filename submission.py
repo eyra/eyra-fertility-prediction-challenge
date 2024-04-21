@@ -8,7 +8,7 @@ def clean_df(df, background_df=None):
     df = df[df['outcome_available']==1]
 
     # process background df
-    background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201601)
+    background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201101)
     background_features = [col for col in background_df_processed.columns if not col.endswith('_ds')]
     background_df_processed = background_df_processed[background_features]
 
