@@ -4,7 +4,6 @@ import pandas as pd
 import optuna
 from pathlib import Path
 from catboost import CatBoostClassifier
-from sklearn.model_selection import StratifiedKFold, cross_validate
 from tqdm import tqdm
 
 from submission import clean_df

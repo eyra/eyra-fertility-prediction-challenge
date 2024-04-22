@@ -1,8 +1,9 @@
 .ipynb_checkpoints
+catboost_info/
+
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
 __pycache__/
 .tool-versions
-catboost_info

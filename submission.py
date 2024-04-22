@@ -6,52 +6,18 @@ def clean_df(df, background_df=None):
 
     # keep rows with available outcome
     df = df[df['outcome_available']==1]
-    
-    features = [
-        'nomem_encr',
 
-        # family
-        'cf20m005',
-        'cf20m007',
-        'cf20m008',
-        'cf20m009',
-        'cf20m011',
-        'cf20m012',
-        'cf20m013',
-        'cf20m014',
-        'cf20m015',
-        'cf20m016',
-        'cf20m018',
-        'cf20m019',
-        'cf20m020',
-        'cf20m022',
-        'cf20m024',
-        'cf20m025',
-        'cf20m026',
-        'cf20m027',
-        'cf20m028',
-        'cf20m029',
-        'cf20m030',
-        'cf20m031',
-        'cf20m032',
-        'cf20m033',
-        'cf20m034',
-        'cf20m128',
-        'cf20m129',
-        'cf20m130',
-        'cf20m166',
-        'cf20m180',
-        'cf20m181',
-    ]
+    id_df = df[['nomem_encr']]
 
-    # add survey
-    df = df[features]
+    # add survey personality
+    survey_df = preprocess_family_df(train_df=df, include=include_family)
 
     # process background df
     background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201101)
 
     # merge preprocessed info with train data
-    df = pd.merge(df, background_df_processed, on='nomem_encr', how='left')
+    df = pd.merge(id_df, background_df_processed, on='nomem_encr', how='left')
+    df = pd.merge(df, survey_df, on='nomem_encr', how='left')
 
     # input missing for categorical features
     features = df.columns.tolist()
@@ -107,7 +73,6 @@ def predict_outcomes(df, background_df=None, model_path="model.joblib"):
 
     # return only dataset with predictions and identifier
     return df_predict
-
 
 
 ### HELPER FUNCTIONS
@@ -320,3 +285,102 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
     })
 
     return out
+
+
+
+include_family = [
+    'What is the year of birth of your father?',
+    'Is your biological father still alive?',
+    'In what year did your biological father pass away?',
+    'What is the year of birth of your mother?',
+    'Is your biological mother still alive?',
+    'In what year did your biological mother pass away?',
+    'Did your own parents ever divorce?',
+    'How old were you when your parents separated?',
+    'Is your father currently living together with a partner?',
+    'Is your mother currently living together with a partner?',
+    "Do you know the postal code of your father's address?",
+    "Do you know the postal code of your mother's address?",
+    'How often did you see your father over the past 12 months?',
+    'How often did you see your mother over the past 12 months?',
+    'Do you currently have a partner?',
+    'Do you live together with this partner?',
+    'What is his or her year of birth?',
+    'In what year did the relationship with your partner begin?',
+    'In what year did you start living together with your partner?',
+    'Are you married to this partner?',
+    'In what year did you marry?',
+    "What is your partner's gender?",
+    'Were you married to another partner before?',
+    'Did you separate or did your previous partner pass away?',
+    'Do you think you will have [more] children in the future?',
+    'How many [more] children do you think you will have in the future?',
+    'Within how many years do you hope to have your [first/next] child?',
+    'Are the friends that you have mainly your own friends, or are they mainly friends that you share with your partner?',
+    'How often per week does it happen, generally speaking, that you engage in some activity in your leisure time, without your partner?',
+    'How often per week does it happen, generally speaking, that your partner engages in some activity in his or her leisure time, without you?',
+    'How satisfied are you with your situation as a single?',
+    'How satisfied are you with your current relationship?',
+    'How satisfied are you with your family life?',
+    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - money expenditure',
+    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - raising the children',
+    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - who does what in terms of household work',
+    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - leisure time expenditure',
+    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - working (too much)',
+    'Was it difficult to answer the questions?',
+    'Were the questions sufficiently clear?',
+    'Did the questionnaire get you thinking about things?',
+    'Was it an interesting subject?',
+    'Did you enjoy answering the questions?',
+    'Are your own parents still together? This concerns your biological father and biological mother.',
+    'Is this partner the same partner you entered in the questionnaire last year?',
+    'Last year you indicated that you had a different partner. Did you separate from your previous partner, or did your previous partner pass away?',
+    'Last year you indicated having a partner at the time. Did you separate, or did your partner pass away?',
+    'Do you consider yourself as childless by choice, or would you have liked to have children?',
+    'Do you consider it a loss not having had children, or does it not matter much, or are you content with it?',
+    'Did you ever have any children?',
+    'How many living children do you have in total?',
+    'Did you ever have (a) child(ren) who passed away after being born?',
+    'How many of your children passed away after being born?',
+    'I am very fond of my mother.',
+    'My mother and I have a close relationship.',
+    'I have conflicting feelings about my mother.',
+    'I am very fond of my [son/daughter].',
+    'My [son/daughter] and I have a close relationship.',
+    'I have conflicting feelings about my [son/daughter].',
+]
+
+
+
+def preprocess_family_df(train_df: pd.DataFrame, include: list) -> pd.DataFrame:
+
+    codebook_df = pd.read_csv('./PreFer_codebook.csv', low_memory=False)
+
+    codebook_df = codebook_df[codebook_df['survey'] == "Family & Household"]
+    codebook_df = codebook_df[codebook_df['year'] == 2020]
+
+    codebook_df = codebook_df[codebook_df['var_label'].isin(include)]
+
+    def create_map_dict(row):
+        try:
+            values = row['values_cat']
+            labels = row['labels_cat']
+            return dict(zip(map(int, values.split(';')), labels.split(';')))
+        except AttributeError:
+            return dict()
+
+    codebook_df['map_dict'] = codebook_df.apply(create_map_dict, axis=1)
+
+    features = codebook_df['var_name'].tolist()
+    features.insert(0, 'nomem_encr')
+
+    train_df = train_df.loc[:, features]
+
+    for _, row in codebook_df.iterrows():
+        if row['type_var'] == 'categorical':
+            col_name = row['var_name']
+            map_dict = row['map_dict']
+            train_df[col_name] = train_df[col_name].map(map_dict)
+            train_df.rename(columns={col_name: f'{col_name}_ds'}, inplace=True)
+
+    return train_df
