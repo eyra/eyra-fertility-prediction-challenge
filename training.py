@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parent_proj_dir = proj_dir.parent
     data_dir = parent_proj_dir / 'prefer_data'
 
-    evaluate = False
+    evaluate = True
 
     # import data
     print('Loading data...')
