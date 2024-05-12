@@ -66,6 +66,19 @@ def clean_df(df, background_df=None):
         # parents
         'cf20m005', # num # year of birth father 2020
         'cf20m009', # num # year of birth mother 2020
+        
+        #gynaecologist
+        'ch20m219',
+        
+        # question about father and mother
+        'cf20m007',
+        'cf20m008',
+        'cf20m011',
+        'cf20m012',
+        'cf20m013',
+        'cf20m014',
+        'cf20m015',
+        'cf20m016'
     ]
     golden_features_df = df[golden_features + ['nomem_encr']]
 
@@ -257,6 +270,8 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'sted': [f_map_urban_type],                                                        # urban character of place of residence
         'belbezig': [f_map_occupation_type],                                               # primary occupation
         'brutohh_f': [f_actual, f_med, f_std],                                             # gross household income in Euros
+        'nettohh_f': [f_actual, f_med, f_std],                                             # gross household income in Euros
+
     })
 
     out.columns = out.columns.map('_'.join).str.strip('_')
@@ -278,6 +293,9 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         'brutohh_f_<lambda_0>': 'actual_household_gross_monthly_income_qt',
         'brutohh_f_<lambda_1>': 'actual_household_gross_monthly_income_med_qt',
         'brutohh_f_<lambda_2>': 'actual_household_gross_monthly_income_std_qt',
+        'nettohh_f_<lambda_0>': 'actual_household_net_monthly_income_qt',
+        'nettohh_f_<lambda_1>': 'actual_household_net_monthly_income_med_qt',
+        'nettohh_f_<lambda_2>': 'actual_household_net_monthly_income_std_qt',
     })
 
     return out
@@ -287,6 +305,7 @@ def personality_bigfive(train_df):
     pattern = r'^cp.*0[2-6][0-9]$'
 
     codebook_df = pd.read_csv('PreFer_codebook.csv', low_memory=False)
+    codebook_df.head()
     codebook_df_personality = codebook_df['var_name'][(codebook_df['survey'] == "Personality") & (codebook_df['year'] == 2020)]
     train_personality = train_df[codebook_df_personality]
 
