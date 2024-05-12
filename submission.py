@@ -1,6 +1,8 @@
 import pandas as pd
 import joblib
-
+from pathlib import Path
+from sklearn.preprocessing import StandardScaler
+from factor_analyzer import FactorAnalyzer
 
 def clean_df(df, background_df=None):
 
@@ -9,18 +11,106 @@ def clean_df(df, background_df=None):
 
     id_df = df[['nomem_encr']]
 
-    # add survey personality
-    survey_df = preprocess_family_df(train_df=df, include=include_family)
+    # add golden features
+    golden_features = [
+
+        # within how many years do you hope to have your first child 2014-2020
+        'cf20m130', # num
+        'cf19l130',
+        'cf18k130',
+        'cf17j130',
+        'cf14g130',
+        'cf15h130',
+        'cf16i130',
+
+        # relationship
+        'cf20m031', # num # in what year did you marry 2016-2020
+        'cf19l031',
+        'cf18k031',
+        'cf17j031',
+        'cf20m028', # num # when did the relationship start 2020
+        'cf17j028', # num # when did the relationship start 2017
+        'cf20m029', # num # in what year did you start living together 2020
+        'cf19l029', # num # in what year did you start living together 2019
+        'cf08a178', # num # partner with previous partners? 2008
+        'cf08a179', # num # partner with previous partners? 2008
+        'cf10c166', # num # how satisfied with situation as single 2010
+        'cf11d186', # num # relationship issues due to working too much 2010
+
+        # children
+        'cf20m129', # num # how many more children 2020
+        'cf20m456', # num # birth year first child 2020
+        'cf20m457', # num # birth year second child 2020
+        'cf20m458', # num # birth year third child 2020
+        'cf19l472', # num # children passed away 2019
+
+        # childcare - behaviour
+        'cf20m203', # cat # getting up from bed at night 2020
+        'cf20m204', # cat # washing the child 2020
+        'cf20m202', # cat # changing diapers 2020
+        'cf20m251', # num # childcare monthly expense 2020
+
+        # childcare - childsitter
+        'cf17j398', # num # distance from parents
+        'cf20m245', # cat # childsitter yes/no 2020
+        'cf20m248', # cat # who is the childsitter 2020
+        'cf20m249', # num # how many days per week childsitter
+        'cf20m387', # num # childcare supplement
+        'cf20m384', # num # subsidies other than child suppleent
+
+        # property
+        'cd20m024', # num # property value 2020
+        'ca18f023', # num # car value 2018
+        'cd20m083', # num # amount mortgage remaining 2020
+
+        # parents
+        'cf20m005', # num # year of birth father 2020
+        'cf20m009', # num # year of birth mother 2020
+    ]
+    golden_features_df = df[golden_features + ['nomem_encr']]
 
     # process background df
     background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201101)
 
+    # process background df
+    bigfive_df = personality_bigfive(train_df=df)
+
     # merge preprocessed info with train data
     df = pd.merge(id_df, background_df_processed, on='nomem_encr', how='left')
-    df = pd.merge(df, survey_df, on='nomem_encr', how='left')
+    df = pd.merge(df, golden_features_df, on='nomem_encr', how='left')
+    df = pd.merge(df, bigfive_df, on='nomem_encr', how='left')
+
+    # convert numerical features from surveys to string
+    list_golden_features_cat = ['cf20m245','cf20m248','cf20m202','cf20m203','cf20m204']
+    df[list_golden_features_cat] = df[list_golden_features_cat].astype('str')
+    for f in list_golden_features_cat:
+        df[f] = df[f].replace('nan', 'missing')
+        df.rename(columns = {f : f'{f}_ds'}, inplace = True)
+
+    # create dummy variables for selected features (important and na correlated with response)
+    to_dummy_na_list = [
+        'cf20m130',
+        'cf20m130',
+        'cf19l130',
+        'cf18k130',
+        'cf17j130',
+        'cf14g130',
+        'cf15h130',
+        'cf16i130',
+        'cf20m031',
+        'cf19l031',
+        'cf20m028',
+        'cf20m029',
+        'cf19l029',
+        'cf20m251',
+        'cf20m249'
+    ]
+    for f in to_dummy_na_list:
+        df[f'{f}_isna_fl'] = (df[f].isna())*1.0
 
     # input missing for categorical features
     features = df.columns.tolist()
+
     cat_features = [col for col in features if col.endswith('_ds')]
     df[cat_features] = df[cat_features].fillna('missing')
 
@@ -97,26 +187,18 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
 
     # preprocessing functions for each variable
     f_actual = lambda x: x.iloc[-1]                         # get the last value (actual) in the series
-    f_min = lambda x: x.min()                               # get the minimum value in the series
-    f_max = lambda x: x.max()                               # get the maximum value in the series
     f_med = lambda x: x.dropna().median()                   # get the median value in the series
     f_std = lambda x: x.dropna().std()                      # get the standard deviation of the series
     f_inc = lambda x: (x.max() > x.min())*1.0               # did the series increase value?
-    f_educ = lambda x: (x.max() == 6 and x.min() < 6)*1.0   # did the suject get a degree?
-    def f_check_sequence(lst):                              # separated and got new partner?
-        seen_one = 0
-        seen_zero_after_one = 0
-        for val in lst:
-            if val == 1:
-                seen_one = 1
-            elif val == 0 and seen_one == 1:
-                seen_zero_after_one = 1
-            if seen_zero_after_one == 1 and val == 1:
-                return 1
-        return 0
+    f_inc2 = lambda x: (x.max() > x.min() & x.min()==0)*1.0 # did the series increase value (starting from 0)?
 
     f_min_equal_one = lambda x: (x.min() == 1)*1.0                    # flag if minimum is equal to one (positie, burgstat)
     f_got_married = lambda x: (x.min() == 1 and x.max() == 5)*1.0     # flag for marriage during obsevation period (burgstat)
+    f_map_gender = lambda x: x.map({
+        1: 'male',
+        2: 'female',
+        3: 'Other',
+    }).iloc[-1]                                                  # map actual value to string for gender and get the last value
     f_map_civil_status = lambda x: x.map({
         1: 'Married',
         2: 'Separated',
@@ -161,226 +243,103 @@ def process_background_df(background_df, train_df, wave_filter='201601'):
         13: 'Does something else',
         14: 'Is too young to have an occupation',
     }).iloc[-1]                                                  # map actual value to string for belbezig (occupation type) and get the last value
-    f_map_income = lambda x: x.map({
-        0: 'No income',
-        1: '500 euros or less',
-        2: '501 to 1000 euros',
-        3: '1001 to 1500 euros', 
-        4: '1501 to 2000 euros', 
-        5: '2001 to 2500 euros', 
-        6: '2501 to 3000 euros',
-        7: '3001 to 3500 euros',
-        8: '3501 to 4000 euros',
-        9: '4001 to 4500 euros',
-        10: '4501 to 5000 euros',
-        11: '5001 to 7500 euros',
-        12: 'More than 7500 euros',
-        13: "I don't know",
-        14: 'I prefer not to say'
-    }).iloc[-1]                                                  # map actual value to string for brutoink_f and nettoink_f (gross and net income) and get the last value
-    f_map_education = lambda x: x.map({
-        1: 'primary school',
-        2: 'vmbo (intermediate secondary education, US: junior high school)',
-        3: 'havo/vwo (higher secondary education/preparatory university education, US:senior high school)',
-        4: 'mbo (intermediate vocational education, US: junior college)',
-        5: 'hbo (higher vocational education, US: college)',
-        6: 'wo (university)',
-        7: 'other',
-        8: 'Not (yet) completed any education',
-        9: 'Not yet started any education'
-    }).iloc[-1]                                                  # map actual value to string for oplmet (education level) and get the last value
-    f_map_origin = lambda x: x.map({
-        0: 'Dutch background',
-        101: 'First generation foreign, Western background',
-        102: 'First generation foreign, non-western background',
-        201: 'Second generation foreign, Western background',
-        202: 'Second generation foreign, non-western background',
-        999: 'Origin unknown or part of the information unknown (missing values)'
-    }).iloc[-1]                                                  # map actual value to string for migration_background_imp (origin) and get the last value
+    
     
     # aggregate using helper functions
     out = df.groupby('nomem_encr').agg({
-        'gender_imp': [f_actual],                                                          # gender
+        'gender_imp': [f_map_gender],                                                      # gender
         'age_imp': [f_actual],                                                             # age
-        'migration_background_imp': [f_actual, f_map_origin],                              # origin
-        'positie': [f_min_equal_one, f_max, f_std],                                        # position within the household
-        'lftdhhh': [f_actual],                                                             # age of the household head
-        'aantalhh': [f_actual, f_min, f_max, f_inc, f_std],                                # number of household members
-        'aantalki': [f_actual, f_min, f_max, f_inc, f_std],                                # number of household children
-        'partner': [f_max, lambda x: f_check_sequence(x)],                                 # the household head lives together with a partner
-        'burgstat': [f_got_married, f_min_equal_one, f_actual, f_map_civil_status, f_std], # civil status
-        'woonvorm': [f_actual, f_map_domestic_situation],                                  # Domestic situation
-        'woning': [f_actual, f_map_dwelling, f_std],                                       # type of dwelling that the household inhabits
-        'sted': [f_actual, f_map_urban_type],                                              # urban character of place of residence
-        'belbezig': [f_actual, f_map_occupation_type, f_std],                              # primary occupation
-        'brutoink_f': [f_actual, f_med, f_std],                                            # personal gross monthly income in Euros, imputed
-        'brutocat': [f_actual, f_map_income],                                              # personal gross monthly income in categories
-        'nettoink_f': [f_actual, f_med, f_std],                                            # personal net monthly income in Euros, imputed
-        'nettocat': [f_actual, f_map_income],                                              # personal net monthly income in categories
+        'partner': [f_actual],                                                             # partner
+        'aantalki': [f_actual, f_inc, f_inc2],                                             # number of household children
+        'burgstat': [f_got_married, f_min_equal_one, f_map_civil_status],                  # civil status
+        'woonvorm': [f_map_domestic_situation],                                            # domestic situation
+        'woning': [f_map_dwelling],                                                        # type of dwelling that the household inhabits
+        'sted': [f_map_urban_type],                                                        # urban character of place of residence
+        'belbezig': [f_map_occupation_type],                                               # primary occupation
         'brutohh_f': [f_actual, f_med, f_std],                                             # gross household income in Euros
-        'nettohh_f': [f_actual, f_med, f_std],                                             # net household income in Euros
-        # 'oplzon': [f_actual, f_map_education],                                           # highest level of education irrespective of diploma
-        'oplmet': [f_actual, f_map_education, f_educ, f_std],                              # highest level of education with diploma
-        # 'oplcat': [f_actual, f_map_education],                                           # level of education in CBS (Statistics Netherlands) categories
     })
 
     out.columns = out.columns.map('_'.join).str.strip('_')
 
     out = out.rename(columns={
-        'gender_imp_<lambda>': 'gender_qt',
+        'gender_imp_<lambda>': 'gender_ds',
         'age_imp_<lambda>': 'age_qt',
-        'migration_background_imp_<lambda_0>': 'origin_qt',
-        'migration_background_imp_<lambda_1>': 'origin_ds',
-        'positie_<lambda_0>': 'is_household_lead_fl',
-        'positie_<lambda_1>': 'max_position_within_the_household_qt',
-        'positie_<lambda_2>': 'position_within_the_household_variation_qt',
-        'lftdhhh_<lambda>': 'household_head_age_qt',
-        'aantalhh_<lambda_0>': 'actual_number_of_household_members_qt',
-        'aantalhh_<lambda_1>': 'min_number_of_household_members_qt',
-        'aantalhh_<lambda_2>': 'max_number_of_household_members_qt',
-        'aantalhh_<lambda_3>': 'number_of_household_members_increase_fl',
-        'aantalhh_<lambda_4>': 'number_of_household_members_variation_qt',
+        'partner_<lambda>': 'has_partner_now_fl',
         'aantalki_<lambda_0>': 'actual_number_of_household_children_qt',
-        'aantalki_<lambda_1>': 'min_number_of_household_children_qt',
-        'aantalki_<lambda_2>': 'max_number_of_household_children_qt',
-        'aantalki_<lambda_3>': 'number_of_household_children_increase_fl',
-        'aantalki_<lambda_4>': 'number_of_household_children_variation_qt',
-        'partner_<lambda_0>': 'has_partner_now_fl',
-        'partner_<lambda_1>': 'got_separated_fl',
+        'aantalki_<lambda_1>': 'number_of_household_children_increase_fl',
+        'aantalki_<lambda_2>': 'got_first_child_fl',
         'burgstat_<lambda_0>': 'got_married_fl',
         'burgstat_<lambda_1>': 'married_now_fl',
-        'burgstat_<lambda_2>': 'actual_civil_status_qt',
-        'burgstat_<lambda_3>': 'actual_civil_status_ds',
-        'burgstat_<lambda_4>': 'actual_civil_status_variation_qt',
-        'woonvorm_<lambda_0>': 'actual_domestic_situation_qt',
-        'woonvorm_<lambda_1>': 'actual_domestic_situation_ds',
-        'woning_<lambda_0>': 'actual_dwelling_qt',
-        'woning_<lambda_1>': 'actual_dwelling_ds',
-        'woning_<lambda_2>': 'dwelling_variation_qt',
-        'sted_<lambda_0>': 'actual_urban_type_qt',
-        'sted_<lambda_1>': 'actual_urban_type_ds',
-        'belbezig_<lambda_0>': 'actual_occupation_type_qt',
-        'belbezig_<lambda_1>': 'actual_occupation_type_ds',
-        'belbezig_<lambda_2>': 'occupation_type_variation_qt',
-        'brutoink_f_<lambda_0>': 'actual_personal_gross_monthly_income_qt',
-        'brutoink_f_<lambda_1>': 'actual_personal_gross_monthly_income_med_qt',
-        'brutoink_f_<lambda_2>': 'actual_personal_gross_monthly_income_std_qt',
-        'brutocat_<lambda_0>': 'actual_personal_gross_monthly_income_descr_qt',
-        'brutocat_<lambda_1>': 'actual_personal_gross_monthly_income_descr_ds',
-        'nettoink_f_<lambda_0>': 'actual_personal_net_monthly_income_qt',
-        'nettoink_f_<lambda_1>': 'actual_personal_net_monthly_income_med_qt',
-        'nettoink_f_<lambda_2>': 'actual_personal_net_monthly_income_std_qt',
-        'nettocat_<lambda_0>': 'actual_personal_net_monthly_income_descr_qt',
-        'nettocat_<lambda_1>': 'actual_personal_net_monthly_income_descr_ds',
-        'nettohh_f_<lambda_0>': 'actual_household_net_monthly_income_qt',
-        'nettohh_f_<lambda_1>': 'actual_household_net_monthly_income_med_qt',
-        'nettohh_f_<lambda_2>': 'actual_household_net_monthly_income_std_qt',
+        'burgstat_<lambda_2>': 'actual_civil_status_ds',
+        'woonvorm_<lambda>': 'actual_domestic_situation_ds',
+        'woning_<lambda>': 'actual_dwelling_ds',
+        'sted_<lambda>': 'actual_urban_type_ds',
+        'belbezig_<lambda>': 'actual_occupation_type_ds',
         'brutohh_f_<lambda_0>': 'actual_household_gross_monthly_income_qt',
         'brutohh_f_<lambda_1>': 'actual_household_gross_monthly_income_med_qt',
         'brutohh_f_<lambda_2>': 'actual_household_gross_monthly_income_std_qt',
-        'oplmet_<lambda_0>': 'actual_education_qt',
-        'oplmet_<lambda_1>': 'actual_education_ds',
-        'oplmet_<lambda_2>': 'got_degree_fl',
-        'oplmet_<lambda_3>': 'education_variation_qt',
     })
 
     return out
 
 
+def personality_bigfive(train_df):
+    pattern = r'^cp.*0[2-6][0-9]$'
 
-include_family = [
-    'What is the year of birth of your father?',
-    'Is your biological father still alive?',
-    'In what year did your biological father pass away?',
-    'What is the year of birth of your mother?',
-    'Is your biological mother still alive?',
-    'In what year did your biological mother pass away?',
-    'Did your own parents ever divorce?',
-    'How old were you when your parents separated?',
-    'Is your father currently living together with a partner?',
-    'Is your mother currently living together with a partner?',
-    "Do you know the postal code of your father's address?",
-    "Do you know the postal code of your mother's address?",
-    'How often did you see your father over the past 12 months?',
-    'How often did you see your mother over the past 12 months?',
-    'Do you currently have a partner?',
-    'Do you live together with this partner?',
-    'What is his or her year of birth?',
-    'In what year did the relationship with your partner begin?',
-    'In what year did you start living together with your partner?',
-    'Are you married to this partner?',
-    'In what year did you marry?',
-    "What is your partner's gender?",
-    'Were you married to another partner before?',
-    'Did you separate or did your previous partner pass away?',
-    'Do you think you will have [more] children in the future?',
-    'How many [more] children do you think you will have in the future?',
-    'Within how many years do you hope to have your [first/next] child?',
-    'Are the friends that you have mainly your own friends, or are they mainly friends that you share with your partner?',
-    'How often per week does it happen, generally speaking, that you engage in some activity in your leisure time, without your partner?',
-    'How often per week does it happen, generally speaking, that your partner engages in some activity in his or her leisure time, without you?',
-    'How satisfied are you with your situation as a single?',
-    'How satisfied are you with your current relationship?',
-    'How satisfied are you with your family life?',
-    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - money expenditure',
-    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - raising the children',
-    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - who does what in terms of household work',
-    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - leisure time expenditure',
-    'Can you indicate whether you and your partner had any differences of opinion regarding the following issues, over the past year? - working (too much)',
-    'Was it difficult to answer the questions?',
-    'Were the questions sufficiently clear?',
-    'Did the questionnaire get you thinking about things?',
-    'Was it an interesting subject?',
-    'Did you enjoy answering the questions?',
-    'Are your own parents still together? This concerns your biological father and biological mother.',
-    'Is this partner the same partner you entered in the questionnaire last year?',
-    'Last year you indicated that you had a different partner. Did you separate from your previous partner, or did your previous partner pass away?',
-    'Last year you indicated having a partner at the time. Did you separate, or did your partner pass away?',
-    'Do you consider yourself as childless by choice, or would you have liked to have children?',
-    'Do you consider it a loss not having had children, or does it not matter much, or are you content with it?',
-    'Did you ever have any children?',
-    'How many living children do you have in total?',
-    'Did you ever have (a) child(ren) who passed away after being born?',
-    'How many of your children passed away after being born?',
-    'I am very fond of my mother.',
-    'My mother and I have a close relationship.',
-    'I have conflicting feelings about my mother.',
-    'I am very fond of my [son/daughter].',
-    'My [son/daughter] and I have a close relationship.',
-    'I have conflicting feelings about my [son/daughter].',
-]
+    codebook_df = pd.read_csv('PreFer_codebook.csv', low_memory=False)
+    codebook_df_personality = codebook_df['var_name'][(codebook_df['survey'] == "Personality") & (codebook_df['year'] == 2020)]
+    train_personality = train_df[codebook_df_personality]
+
+    five_personality = train_personality.filter(regex=pattern)
+    five_pers_inputed = inpute_na(train_df, five_personality.columns.tolist(),codebook_df)
+
+    rows_with_na = five_pers_inputed[five_pers_inputed.isna().all(axis=1)].index
+    index_nona = five_pers_inputed[~five_pers_inputed.isna().all(axis=1)].index
+    five_pers_inp_nona = five_pers_inputed.loc[index_nona]
+
+    final_personality = five_pers_inp_nona.fillna(five_pers_inp_nona.mean())
+    
+    scaler =StandardScaler()
+    X_scaled=scaler.fit_transform(final_personality)
+
+    fa = FactorAnalyzer(n_factors=5, rotation='oblimin')
+    fa.fit(X_scaled)
+
+    factor_scores = fa.transform(X_scaled)
+    fa_df = pd.DataFrame(data=factor_scores,columns=['Factor 1','Factor 2','Factor 3','Factor 4','Factor 5'])
+
+    id_nona = train_df['nomem_encr'][index_nona.tolist()].tolist()
+    id_nona = pd.DataFrame(id_nona, columns=['nomem_encr']) 
+    
+    fa_df_tomodel = pd.concat([id_nona, fa_df], axis=1,ignore_index=True)
+
+    id_na = train_df['nomem_encr'][rows_with_na.tolist()].tolist()
+    new_rows = pd.DataFrame({'nomem_encr': id_na})
+    for col in fa_df_tomodel.columns[1:]:  # Ignora la colonna 'nomem_encr'
+        new_rows[col] = None
+
+    fa_df_tomodel = pd.concat([fa_df_tomodel , new_rows], axis=0)
+    fa_df_tomodel.loc[fa_df_tomodel.nomem_encr.isna(), 'nomem_encr'] = fa_df_tomodel[0][~fa_df_tomodel[0].isna()]
+    fa_df_tomodel = fa_df_tomodel.drop(columns=[0])
+    fa_df_tomodel.columns = ['personality_1', 'personality_2', 'personality_3', 'personality_4', 'personality_5', 'nomem_encr']
+    
+    return fa_df_tomodel
 
 
+def inpute_na(train_df, var_list, codebook_df):
 
-def preprocess_family_df(train_df: pd.DataFrame, include: list) -> pd.DataFrame:
+    out_df = train_df.copy()
+    out_df = out_df[var_list]
+    print(f'% missing for values for selected variables:\nbefore: {out_df.isna().mean(axis=1).mean():.2%}')
 
-    codebook_df = pd.read_csv('./PreFer_codebook.csv', low_memory=False)
+    for var_name in var_list:
 
-    codebook_df = codebook_df[codebook_df['survey'] == "Family & Household"]
-    codebook_df = codebook_df[codebook_df['year'] == 2020]
+        var_label = codebook_df['var_label'][codebook_df ['var_name']==var_name].values[0]
+        var_name_hist_codebook = codebook_df[codebook_df ['var_label']==var_label]
+        var_name_hist = var_name_hist_codebook.sort_values(by='year', ascending=False)['var_name']
 
-    codebook_df = codebook_df[codebook_df['var_label'].isin(include)]
-
-    def create_map_dict(row):
-        try:
-            values = row['values_cat']
-            labels = row['labels_cat']
-            return dict(zip(map(int, values.split(';')), labels.split(';')))
-        except AttributeError:
-            return dict()
-
-    codebook_df['map_dict'] = codebook_df.apply(create_map_dict, axis=1)
-
-    features = codebook_df['var_name'].tolist()
-    features.insert(0, 'nomem_encr')
-
-    train_df = train_df.loc[:, features]
-
-    for _, row in codebook_df.iterrows():
-        if row['type_var'] == 'categorical':
-            col_name = row['var_name']
-            map_dict = row['map_dict']
-            train_df[col_name] = train_df[col_name].map(map_dict)
-            train_df.rename(columns={col_name: f'{col_name}_ds'}, inplace=True)
-
-    return train_df
+        tmp = train_df[var_name_hist]
+        out_df[var_name] = tmp.bfill(axis=1).iloc[:, 0]
+        
+    print(f'after: {out_df.isna().mean(axis=1).mean():.2%}')
+    return out_df
