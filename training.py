@@ -8,16 +8,16 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit, cross_validate
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import VotingClassifier, StackingClassifier
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.ensemble import ExtraTreesClassifier
 from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
 
 from submission import clean_df
 
 
-def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluate: bool=False)-> None:
+def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluate: bool=False, tune: bool=False)-> None:
     """
     Train and tune a CatBoostClassifier model on the baseline + background features and save it.
 
@@ -32,6 +32,9 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
     # prepare input data
     model_df = pd.merge(cleaned_df, outcome_df, on="nomem_encr")
 
+        # prepare input data
+    model_df = pd.merge(cleaned_df, outcome_df, on="nomem_encr")
+
     # define the preprocessing pipeline
     features = [c for c in model_df.columns if c not in ['nomem_encr', 'new_child']]
     cat_features = [col for col in features if col.endswith('_ds')]
@@ -41,50 +44,92 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
         ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler())])
 
-    categorical_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))])
+    categorical_transformer = Pipeline(steps=[('onehot', OneHotEncoder(handle_unknown='ignore'))])
 
     preprocessor = ColumnTransformer(
         transformers=[
             ('num', numeric_transformer, num_features),
             ('cat', categorical_transformer, cat_features)])
-
-    # model = VotingClassifier(estimators=[
-    #         ('lr', Pipeline(steps=[('preprocessor', preprocessor), ('clf', LogisticRegression(class_weight='balanced', random_state=42))])),
-    #         ('rf', Pipeline(steps=[('preprocessor', preprocessor), ('clf', RandomForestClassifier(n_estimators=300, random_state=42))])),
-    #         ('cb', CatBoostClassifier(cat_features=cat_features, verbose=False, random_state=42))
-    #     ], voting='hard')
-    model = StackingClassifier(
-        estimators = [
-            ('rf', Pipeline(steps=[('preprocessor', preprocessor), ('clf', RandomForestClassifier(n_estimators=300, random_state=42))])),
-            ('cb', CatBoostClassifier(cat_features=cat_features, verbose=False, random_state=42))
-            ],
-        final_estimator = LogisticRegression(class_weight='balanced', random_state=42),
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-        )
     
+    params_catboost = {
+        'iterations': 1000,
+        'learning_rate': 0.04465495649788828,
+        'depth': 7,
+        'subsample': 0.5990716998946282, 
+        'colsample_bylevel': 0.15856264300042117, 
+        'min_data_in_leaf': 48
+        }
+    params_lgb = {
+        'bagging_fraction': 0.8, 
+        'feature_fraction': 0.9, 
+        'learning_rate': 0.1, 
+        'max_bin': 20, 
+        'max_depth': 30, 
+        'min_data_in_leaf': 20, 
+        'min_sum_hessian_in_leaf': 0.001, 
+        'n_estimators': 3246, 
+        'num_leaves': 24, 
+        'subsample': 1.0
+        }
+
+    models = {
+        'et': Pipeline(steps=[('preprocessor', preprocessor), ('clf', ExtraTreesClassifier(n_estimators=500, max_features=0.3, random_state=42))]),
+        'cb': CatBoostClassifier(cat_features=cat_features, verbose=False, random_state=42, **params_catboost),
+        'lgb':  LGBMClassifier(boosting_type = 'gbdt', random_state=42, verbose=-1, class_weight = 'balanced', **params_lgb)
+    }
+
     # fit the model
-    model.fit(model_df[features], model_df['new_child'])
+    models['et'].fit(model_df[features], model_df['new_child'])
+    models['cb'].fit(model_df[features], model_df['new_child'])
+    models['lgb'].fit(model_df[features], model_df['new_child'], categorical_feature=cat_features)
 
     # save the model and params
-    joblib.dump(model, Path(__file__).parent / f"model.joblib")
+    joblib.dump(models, Path(__file__).parent / f"model.joblib")
 
     if evaluate == True:
 
-        print('Performing cross validation...')
+        print('\nPerforming cross validation...')
 
-        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        scoring = ['accuracy', 'precision', 'recall', 'f1']
+        # cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        # cv = RepeatedStratifiedKFold(n_splits=2, n_repeats=10, random_state=42)
+        cv = StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=1927)
+        cv_results = []
 
-        # perform cross validation 
-        cv_results = cross_validate(model, model_df[features], model_df['new_child'], cv=cv, scoring=scoring)
+        for train_index, test_index in tqdm(cv.split(model_df[features], model_df['new_child'])):
+            X_train, X_test = model_df.iloc[train_index][features], model_df.iloc[test_index][features]
+            y_train, y_test = model_df.iloc[train_index]['new_child'], model_df.iloc[test_index]['new_child']
 
-        # extract metrics from cv_results
-        accuracy = cv_results['test_accuracy'].mean()
-        precision = cv_results['test_precision'].mean()
-        recall = cv_results['test_recall'].mean()
-        f1 = cv_results['test_f1'].mean()
+            # fit models
+            models['et'].fit(X_train, y_train)
+            models['cb'].fit(X_train, y_train)
+            models['lgb'].fit(X_train, y_train, categorical_feature=cat_features)
+
+            # predictions
+            et_preds = models['et'].predict_proba(X_test)[:, 1]
+            cb_preds = models['cb'].predict_proba(X_test)[:, 1]
+            lgb_preds = models['lgb'].predict_proba(X_test)[:, 1]
+
+            # average prediction for class 1
+            final_preds = cb_preds*0.5 + et_preds*0.25 + lgb_preds*0.25
+
+            # metrics
+            acc = accuracy_score(y_test, final_preds.round())
+            prec = precision_score(y_test, final_preds.round())
+            rec = recall_score(y_test, final_preds.round())
+            f1 = f1_score(y_test, final_preds.round())
+
+            cv_results.append([acc, prec, rec, f1])
+        
+        # extract metrics from cv_results    
+        accuracy_scores = [result[0] for result in cv_results]
+        precision_scores = [result[1] for result in cv_results]
+        recall_scores = [result[2] for result in cv_results]
+        f1_scores = [result[3] for result in cv_results]
+
+        accuracy = np.mean(accuracy_scores)
+        precision = np.mean(precision_scores)
+        recall = np.mean(recall_scores)
+        f1 = np.mean(f1_scores)
 
         results_df = pd.DataFrame({
             'model_name': ['prefer'], 
@@ -98,10 +143,10 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
 
         # print cv metrics
         print('CV metrics:')
-        print(f"\taccuracy: {accuracy:.4f} ({cv_results['test_accuracy'].std():.4f})")
-        print(f"\tprecision: {precision:.4f} ({cv_results['test_precision'].std():.4f})")
-        print(f"\trecall: {recall:.4f} ({cv_results['test_recall'].std():.4f})")
-        print(f"\tf1 score: {f1:.4f} ({cv_results['test_f1'].std():.4f})")        
+        print(f"\taccuracy: {accuracy:.4f} ({np.std(accuracy_scores):.4f})")
+        print(f"\tprecision: {precision:.4f} ({np.std(precision_scores):.4f})")
+        print(f"\trecall: {recall:.4f} ({np.std(recall_scores):.4f})")
+        print(f"\tf1 score: {f1:.4f} ({np.std(f1_scores):.4f})")      
 
 
 if __name__ == '__main__':
@@ -110,7 +155,7 @@ if __name__ == '__main__':
     parent_proj_dir = proj_dir.parent
     data_dir = parent_proj_dir / 'prefer_data'
 
-    evaluate = False
+    evaluate = True
 
     # import data
     print('Loading data...')

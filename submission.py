@@ -11,125 +11,232 @@ def clean_df(df, background_df=None):
 
     id_df = df[['nomem_encr']]
 
-    # add golden features
-    golden_features = [
+    feature_2020_impute = [
 
-        # within how many years do you hope to have your first child 2014-2020
-        'cf20m130', # num
-        'cf19l130',
-        'cf18k130',
-        'cf17j130',
-        'cf14g130',
-        'cf15h130',
-        'cf16i130',
-
-        # relationship
-        'cf20m031', # num # in what year did you marry 2016-2020
-        'cf19l031',
-        'cf18k031',
-        'cf17j031',
-        'cf20m028', # num # when did the relationship start 2020
-        'cf17j028', # num # when did the relationship start 2017
-        'cf20m029', # num # in what year did you start living together 2020
-        'cf19l029', # num # in what year did you start living together 2019
-        'cf08a178', # num # partner with previous partners? 2008
-        'cf08a179', # num # partner with previous partners? 2008
-        'cf10c166', # num # how satisfied with situation as single 2010
-        'cf11d186', # num # relationship issues due to working too much 2010
-
-        # children
-        'cf20m129', # num # how many more children 2020
-        'cf20m456', # num # birth year first child 2020
-        'cf20m457', # num # birth year second child 2020
-        'cf20m458', # num # birth year third child 2020
-        'cf19l472', # num # children passed away 2019
-
-        # childcare - behaviour
-        'cf20m203', # cat # getting up from bed at night 2020
-        'cf20m204', # cat # washing the child 2020
-        'cf20m202', # cat # changing diapers 2020
-        'cf20m251', # num # childcare monthly expense 2020
-
-        # childcare - childsitter
-        'cf17j398', # num # distance from parents
-        'cf20m245', # cat # childsitter yes/no 2020
-        'cf20m248', # cat # who is the childsitter 2020
-        'cf20m249', # num # how many days per week childsitter
-        'cf20m387', # num # childcare supplement
-        'cf20m384', # num # subsidies other than child suppleent
-
-        # property
-        'cd20m024', # num # property value 2020
-        'ca18f023', # num # car value 2018
-        'cd20m083', # num # amount mortgage remaining 2020
-
-        # parents
-        'cf20m005', # num # year of birth father 2020
-        'cf20m009', # num # year of birth mother 2020
+        # Family & Household
+        'cf20m130', # within how many years do you hope to have your first child
+        'cf20m129', # How many more children
+        'cf20m128', # Do you want another child ?
         
-        #gynaecologist
-        'ch20m219',
+        'cf20m005', # Year of birth father 
+        'cf20m008', # When did yout father pass away # 
+        'cf20m009', # Year of birth mum #
+        'cf20m012', # When did yuor mum pass away #  
+        'cf20m014', # How old were you when your parents separated
+        'cf20m398', # Distance from parents
+
+        'cf20m025', # Living with partner
+        'cf20m028', # Relationship start year
+        'cf20m029', # Living together start year
+        'cf20m030', # Are you maried
+        'cf20m031', # In what year did you marry
+        'cf20m402', # Same partner
+        'cf20m032', # gender partner
+        'cf20m166', # How satisfied with situation as single
+        'cf20m185', # Partner disagreement frequency
+        'cf20m186', # Relationship issues due to working too much
+
+        'cf20m250', # Childcare usage
+        'cf20m251', # Childcare monthly expense
         
-        # question about father and mother
-        'cf20m007',
-        'cf20m008',
-        'cf20m011',
-        'cf20m012',
-        'cf20m013',
-        'cf20m014',
-        'cf20m015',
-        'cf20m016'
+        'cf20m456', # First child's birth year
+        'cf20m457', # Second child's birth year
+        'cf20m458', # Third child's birth year
+        'cf20m459', # Fourth child's birth year
+        'cf20m460', # Fifth child's birth year
+        'cf20m461', # Sixth child's birth year
+        'cf20m462', # Seventh child's birth year
+        'cf20m463', # Eighth child's birth year
+        'cf20m464', # Ninth child's birth year
+        'cf20m465', # Tenth child's birth year
+        'cf20m466', # Eleventh child's birth year
+        'cf20m467', # Twelfth child's birth year
+        'cf20m468', # Thirteenth child's birth year
+        'cf20m469', # Fourteenth child's birth year
+        'cf20m470', # Fifteenth child's birth year
+
+        'cf20m471', # Children passed away
+        'cf20m472', # What age Children passed away
+        'cf20m486', # Household chores division
+
+        # Politics and Values 
+        'cv20l068', # Political views
+        'cv20l103', # Overall satisfaction
+        'cv20l125', # Marriage and children
+        'cv20l126', # One parent vs two
+        'cv20l130', # Divorce normalcy
+
+        # Social Integration and Leisure
+        'cs20m180', # Leisure time hours
+        'cs20m370', # Education level
+
+        # Religion and Ethnicity
+        'cr20m041',  # Religiosity    
+        'cr20m093', # Speaking Dutch with partner
+        'cr20m094', # Speaking Dutch with children
+
+        # Economic Situation Assets
+        'ca20g023', # car value
+        # Economic Situation Housing
+        'cd20m024',  # property value 2020
+        # Economic Situation Income
+        'ci20m043', # Work situation
+        'ci20m309', # Paying for children's expenses (multiple answer)
+
+        # Health
+        'ch20m219', # gynaecologist
+
+        # Background
+        'migration_background_bg',
+        'age_bg',
     ]
-    golden_features_df = df[golden_features + ['nomem_encr']]
+
+    features_background_impute = [        
+        # Background
+        'belbezig_2020', # occupation
+        'brutoink_f_2020', # gross income
+        'nettoink_f_2020', # net income
+        'burgstat_2020', # civil status
+        'oplcat_2020', # education
+        'partner_2020', # lives with partner
+        'sted_2020', # urban type
+        'woning_2020', # dwelling type
+        'woonvorm_2020' # domestic situation
+        ]
+
+    feature_2020_notimpute = [
+
+        # Family & Household
+        'cf20m130', # within how many years do you hope to have your first child
+        'cf20m129', # How many more children
+        'cf20m128', # Do you want another child ?
+        
+        'cf20m025', # Living with partner
+        'cf20m030', # Are you maried
+        'cf20m402', # Same partner
+        'cf20m032', # gender partner
+        'cf20m166', # How satisfied with situation as single
+
+        'cf20m471', # Children passed away
+
+        # Politics and Values 
+        'cv20l103', # Overall satisfaction
+        'cv20l125', # Marriage and children
+        'cv20l126', # One parent vs two
+        'cv20l130', # Divorce normalcy
+
+        # Health
+        'ch20m219', # gynaecologist
+
+        # Background
+        'migration_background_bg',
+        'age_bg',
+        'belbezig_2020', # occupation
+        'brutoink_f_2020', # gross income
+        'nettoink_f_2020', # net income
+        'burgstat_2020', # civil status
+        'oplcat_2020', # education
+        'partner_2020', # lives with partner
+        'sted_2020', # urban type
+        'woning_2020', # dwelling type
+        'woonvorm_2020' # domestic situation
+    ]
+
+    child_birth_years = [        
+        'cf20m456', # First child's birth year
+        'cf20m457', # Second child's birth year
+        'cf20m458', # Third child's birth year
+        'cf20m459', # Fourth child's birth year
+        'cf20m460', # Fifth child's birth year
+        'cf20m461', # Sixth child's birth year
+        'cf20m462', # Seventh child's birth year
+        'cf20m463', # Eighth child's birth year
+        'cf20m464', # Ninth child's birth year
+        'cf20m465', # Tenth child's birth year
+        'cf20m466', # Eleventh child's birth year
+        'cf20m467', # Twelfth child's birth year
+        'cf20m468', # Thirteenth child's birth year
+        'cf20m469', # Fourteenth child's birth year
+        'cf20m470', # Fifteenth child's birth year
+        ]
+    
+    # imputation
+    codebook_df = pd.read_csv('PreFer_codebook.csv', low_memory=False)
+    df_impute_noback = pd.merge(df[['nomem_encr']], inpute_na(df, feature_2020_impute, codebook_df, method = ''), left_index=True, right_index=True)
+    df_impute_back = pd.merge(df[['nomem_encr']], inpute_na(df, features_background_impute, codebook_df), left_index=True, right_index=True)
+    df_impute = pd.merge(df_impute_back, df_impute_noback, on = ['nomem_encr'], how = 'inner')
+    
+    # year last child, how many children
+    df_impute['year_last_child'] = df_impute[child_birth_years].max(axis=1, skipna=True)
+    df_impute['num_children'] = df_impute[child_birth_years].notna().sum(axis=1)
+    df_impute.drop(columns=child_birth_years, inplace=True)
+
+    # add raw features 
+    for c in df_impute.columns:
+        if c != 'nomem_encr':
+            df_impute.rename(columns={c: f'{c}_imputed'}, inplace=True)
+    df_new = pd.merge(df_impute, df[feature_2020_notimpute+['nomem_encr']],  on = 'nomem_encr', how = 'inner')
+
+    feature_super_gold  =  [    
+        # within how many years do you hope to have your first child
+        'cf20m130', # 2020
+        'cf19l130', # 2019
+        'cf18k130', # 2018
+        'cf17j130', # 2017
+        'cf16i130', # 2016
+        'cf15h130', # 2015
+        'cf14g130', # 2014
+        'cf13f130', # 2013
+        'cf12e130', # 2012
+        'cf11d130', # 2011
+        'cf09b130', # 2009
+        'cf08a130', # 2008
+        ] 
+
+    df_zero = imputation_cf20_130(feature_super_gold, train_df=df)
+    df_negative = imputation_cf20_130_negative(feature_super_gold, train_df=df)
+    df_super_gold_imputed = pd.merge(df_zero, df_negative, on = 'nomem_encr', how = 'inner')
+
+    df2 = pd.merge(df_super_gold_imputed, df_new, on = 'nomem_encr', how = 'inner')
 
     # process background df
     background_df_processed = process_background_df(background_df=background_df, train_df=df, wave_filter=201101)
+    background_gold = [
+        'actual_household_gross_monthly_income_qt',
+        'actual_household_net_monthly_income_qt',
+        'actual_household_gross_monthly_income_med_qt',
+        'actual_household_gross_monthly_income_std_qt',
+        'actual_household_net_monthly_income_std_qt',
+        'age_qt',
+        'gender_ds',
+        'got_married_fl',
+        'actual_household_net_monthly_income_med_qt']
+    background_df_processed = background_df_processed[background_gold]
 
-    # process background df
+    # same sex
+    df2['cf20m032_imputed'] = df2['cf20m032_imputed'].replace({1: 'male', 2: 'female'})
+    df3 = pd.merge(df2, background_df_processed['gender_ds'], on = 'nomem_encr', how='left')
+    df3['same_sex_ds'] = df3['cf20m032_imputed'] == df3['gender_ds']
+    df3.drop(columns=['cf20m032', 'cf20m032_imputed', 'gender_ds'], inplace=True)
+
+    # big five
     bigfive_df = personality_bigfive(train_df=df)
 
     # merge preprocessed info with train data
     df = pd.merge(id_df, background_df_processed, on='nomem_encr', how='left')
-    df = pd.merge(df, golden_features_df, on='nomem_encr', how='left')
+    df = pd.merge(df, df3, on='nomem_encr', how='left')
     df = pd.merge(df, bigfive_df, on='nomem_encr', how='left')
 
-    # convert numerical features from surveys to string
-    list_golden_features_cat = ['cf20m245','cf20m248','cf20m202','cf20m203','cf20m204']
-    df[list_golden_features_cat] = df[list_golden_features_cat].astype('str')
-    for f in list_golden_features_cat:
-        df[f] = df[f].replace('nan', 'missing')
-        df.rename(columns = {f : f'{f}_ds'}, inplace = True)
-
-    # create dummy variables for selected features (important and na correlated with response)
-    to_dummy_na_list = [
-        'cf20m130',
-        'cf20m130',
-        'cf19l130',
-        'cf18k130',
-        'cf17j130',
-        'cf14g130',
-        'cf15h130',
-        'cf16i130',
-        'cf20m031',
-        'cf19l031',
-        'cf20m028',
-        'cf20m029',
-        'cf19l029',
-        'cf20m251',
-        'cf20m249'
-    ]
-    for f in to_dummy_na_list:
-        df[f'{f}_isna_fl'] = (df[f].isna())*1.0
-
-    # input missing for categorical features
-    features = df.columns.tolist()
-
-    cat_features = [col for col in features if col.endswith('_ds')]
+    cat_features = [col for col in df.columns.tolist() if col.endswith('_ds')]
     df[cat_features] = df[cat_features].fillna('missing')
+    for c in cat_features:
+        df[c] = df[c].astype('category')
 
+    features = df.columns.tolist()
     df = df[features]
 
     return df
+
 
 
 def predict_outcomes(df, background_df=None, model_path="model.joblib"):
@@ -153,12 +260,11 @@ def predict_outcomes(df, background_df=None, model_path="model.joblib"):
     pd.DataFrame: A dataframe containing the identifiers and their corresponding predictions.
     """
 
-    ## This script contains a bare minimum working example
     if "nomem_encr" not in df.columns:
         print("The identifier variable 'nomem_encr' should be in the dataset")
 
     # load the model
-    model = joblib.load(model_path)
+    models = joblib.load(model_path)
 
     # preprocess the fake / holdout data
     df = clean_df(df=df, background_df=background_df)
@@ -167,7 +273,13 @@ def predict_outcomes(df, background_df=None, model_path="model.joblib"):
     vars_without_id = df.columns[df.columns != 'nomem_encr']
 
     # generate predictions from model, should be 0 (no child) or 1 (had child)
-    predictions = model.predict(df[vars_without_id])
+    et_preds = models['et'].predict_proba(df[vars_without_id])[:, 1]
+    cb_preds = models['cb'].predict_proba(df[vars_without_id])[:, 1]
+    lgb_preds = models['lgb'].predict_proba(df[vars_without_id])[:, 1]
+
+    # average prediction for class 1
+    final_preds = cb_preds*0.5 + et_preds*0.25 + lgb_preds*0.25
+    predictions = final_preds.round()
 
     # output file should be DataFrame with two columns, nomem_encr and predictions
     df_predict = pd.DataFrame(
@@ -345,20 +457,95 @@ def personality_bigfive(train_df):
     return fa_df_tomodel
 
 
-def inpute_na(train_df, var_list, codebook_df):
+def inpute_na(train_df, var_list, codebook_df, method='var_label'):
 
     out_df = train_df.copy()
     out_df = out_df[var_list]
     print(f'% missing for values for selected variables:\nbefore: {out_df.isna().mean(axis=1).mean():.2%}')
 
     for var_name in var_list:
+        survey_tmp = codebook_df.survey[codebook_df.var_name == var_name].values[0]
+        if method=='var_label':
+            var_label = codebook_df['var_label'][codebook_df ['var_name']==var_name].values[0]
+            var_name_hist_codebook = codebook_df[codebook_df ['var_label']==var_label]
+            var_name_hist_codebook = var_name_hist_codebook.loc[var_name_hist_codebook.survey.str.contains(survey_tmp),:]
 
-        var_label = codebook_df['var_label'][codebook_df ['var_name']==var_name].values[0]
-        var_name_hist_codebook = codebook_df[codebook_df ['var_label']==var_label]
+        else:
+            var_name_hist_codebook = codebook_df[codebook_df['var_name'].str.startswith(var_name[:2]) & codebook_df['var_name'].str.endswith(var_name[-3:])]
+        
         var_name_hist = var_name_hist_codebook.sort_values(by='year', ascending=False)['var_name']
-
+        
         tmp = train_df[var_name_hist]
         out_df[var_name] = tmp.bfill(axis=1).iloc[:, 0]
         
     print(f'after: {out_df.isna().mean(axis=1).mean():.2%}')
     return out_df
+
+
+def imputation_cf20_130(list_features, train_df):
+
+    prova_train = train_df[list_features + ['nomem_encr']]
+
+    new_cf20m130 = []
+    indici_salvati = prova_train['nomem_encr']
+    prova_prova_train = prova_train.fillna(-1000).drop(columns=['nomem_encr'])
+    valore_nan = -1000
+
+    for i in prova_prova_train.index:
+        if prova_prova_train['cf20m130'][i] == valore_nan:
+            count_col = 0
+            for col in prova_prova_train.columns[::-1]:
+                count_col = count_col + 1
+                if prova_prova_train[col][i] != valore_nan:
+                    new_value = prova_prova_train[col][i] - (count_col-1)
+                    if new_value > 0:
+                        new_cf20m130.append([indici_salvati[i],new_value])
+                    else:
+                        new_cf20m130.append([indici_salvati[i],0])
+                    break
+                if count_col == prova_prova_train.shape[1]:
+                    new_cf20m130.append([indici_salvati[i],float('nan')])
+        else:
+            if prova_prova_train['cf20m130'][i]>2000:
+                new_cf20m130.append([indici_salvati[i],prova_prova_train['cf20m130'][i]-2020])
+            else:
+                new_cf20m130.append([indici_salvati[i],prova_prova_train['cf20m130'][i]])
+
+                
+    new_cf20m130 = pd.DataFrame(new_cf20m130, columns=['nomem_encr','cf20m130_zero'])
+    
+    return new_cf20m130
+
+
+def imputation_cf20_130_negative(list_features, train_df):
+
+    prova_train = train_df[list_features + ['nomem_encr']]
+
+    new_cf20m130 = []
+    indici_salvati = prova_train['nomem_encr']
+    prova_prova_train = prova_train.fillna(-1000).drop(columns=['nomem_encr'])
+    valore_nan = -1000
+
+    for i in prova_prova_train.index:
+        if prova_prova_train['cf20m130'][i] == valore_nan:
+            count_col = 0
+            for col in prova_prova_train.columns[::-1]:
+                count_col = count_col + 1
+                if prova_prova_train[col][i] != valore_nan:
+                    new_value = prova_prova_train[col][i] - (count_col-1)
+                    # if new_value > 0:
+                    new_cf20m130.append([indici_salvati[i],new_value])
+                    # else:
+                    #     new_cf20m130.append([indici_salvati[i],0])
+                    break
+                if count_col == prova_prova_train.shape[1]:
+                    new_cf20m130.append([indici_salvati[i],float('nan')])
+        else:
+            if prova_prova_train['cf20m130'][i]>2000:
+                new_cf20m130.append([indici_salvati[i],prova_prova_train['cf20m130'][i]-2020])
+            else:
+                new_cf20m130.append([indici_salvati[i],prova_prova_train['cf20m130'][i]])
+                
+    new_cf20m130 = pd.DataFrame(new_cf20m130, columns=['nomem_encr','cf20m130_negative'])
+    
+    return new_cf20m130
