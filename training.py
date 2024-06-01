@@ -39,6 +39,9 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
     features = [c for c in model_df.columns if c not in ['nomem_encr', 'new_child']]
     cat_features = [col for col in features if col.endswith('_ds')]
     num_features = [col for col in features if not col.endswith('_ds')]
+    
+    for c in cat_features:
+        model_df[c] = model_df[c].astype('category')
 
     numeric_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='median')),
@@ -51,14 +54,6 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
             ('num', numeric_transformer, num_features),
             ('cat', categorical_transformer, cat_features)])
     
-    params_catboost = {
-        'iterations': 1000,
-        'learning_rate': 0.04465495649788828,
-        'depth': 7,
-        'subsample': 0.5990716998946282, 
-        'colsample_bylevel': 0.15856264300042117, 
-        'min_data_in_leaf': 48
-        }
     params_lgb = {
         'bagging_fraction': 0.8, 
         'feature_fraction': 0.9, 
@@ -73,18 +68,18 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
         }
 
     models = {
-        'et': Pipeline(steps=[('preprocessor', preprocessor), ('clf', ExtraTreesClassifier(n_estimators=500, max_features=0.3, random_state=42))]),
-        'cb': CatBoostClassifier(cat_features=cat_features, verbose=False, random_state=42, **params_catboost),
+        'cb': CatBoostClassifier(cat_features=cat_features, verbose=False, random_state=42),
+        'et': Pipeline(steps=[('preprocessor', preprocessor), ('clf', ExtraTreesClassifier(n_estimators=500, max_features=0.3, class_weight='balanced', random_state=42))]),
         'lgb':  LGBMClassifier(boosting_type = 'gbdt', random_state=42, verbose=-1, class_weight = 'balanced', **params_lgb)
     }
 
     # fit the model
-    models['et'].fit(model_df[features], model_df['new_child'])
     models['cb'].fit(model_df[features], model_df['new_child'])
+    models['et'].fit(model_df[features], model_df['new_child'])
     models['lgb'].fit(model_df[features], model_df['new_child'], categorical_feature=cat_features)
 
     # save the model and params
-    joblib.dump(models, Path(__file__).parent / f"model.joblib")
+    joblib.dump(models, f"model.joblib")
 
     if evaluate == True:
 
@@ -100,13 +95,13 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
             y_train, y_test = model_df.iloc[train_index]['new_child'], model_df.iloc[test_index]['new_child']
 
             # fit models
-            models['et'].fit(X_train, y_train)
             models['cb'].fit(X_train, y_train)
+            models['et'].fit(X_train, y_train)
             models['lgb'].fit(X_train, y_train, categorical_feature=cat_features)
 
             # predictions
-            et_preds = models['et'].predict_proba(X_test)[:, 1]
             cb_preds = models['cb'].predict_proba(X_test)[:, 1]
+            et_preds = models['et'].predict_proba(X_test)[:, 1]
             lgb_preds = models['lgb'].predict_proba(X_test)[:, 1]
 
             # average prediction for class 1
@@ -139,7 +134,7 @@ def train_save_model(cleaned_df: pd.DataFrame, outcome_df: pd.DataFrame, evaluat
             'f1_score': [f1]})
 
         # save results
-        results_df.to_csv(Path(__file__).parent / 'metrics.csv', index=False)
+        # results_df.to_csv('metrics.csv', index=False)
 
         # print cv metrics
         print('CV metrics:')

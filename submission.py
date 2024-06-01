@@ -85,10 +85,6 @@ def clean_df(df, background_df=None):
 
         # Health
         'ch20m219', # gynaecologist
-
-        # Background
-        'migration_background_bg',
-        'age_bg',
     ]
 
     features_background_impute = [        
@@ -114,23 +110,13 @@ def clean_df(df, background_df=None):
         'cf20m025', # Living with partner
         'cf20m030', # Are you maried
         'cf20m402', # Same partner
-        'cf20m032', # gender partner
         'cf20m166', # How satisfied with situation as single
-
-        'cf20m471', # Children passed away
-
-        # Politics and Values 
-        'cv20l103', # Overall satisfaction
-        'cv20l125', # Marriage and children
-        'cv20l126', # One parent vs two
-        'cv20l130', # Divorce normalcy
 
         # Health
         'ch20m219', # gynaecologist
 
         # Background
         'migration_background_bg',
-        'age_bg',
         'belbezig_2020', # occupation
         'brutoink_f_2020', # gross income
         'nettoink_f_2020', # net income
@@ -160,7 +146,7 @@ def clean_df(df, background_df=None):
         'cf20m470', # Fifteenth child's birth year
         ]
     
-    # imputation
+    # imputation 
     codebook_df = pd.read_csv('PreFer_codebook.csv', low_memory=False)
     df_impute_noback = pd.merge(df[['nomem_encr']], inpute_na(df, feature_2020_impute, codebook_df, method = ''), left_index=True, right_index=True)
     df_impute_back = pd.merge(df[['nomem_encr']], inpute_na(df, features_background_impute, codebook_df), left_index=True, right_index=True)
@@ -175,6 +161,7 @@ def clean_df(df, background_df=None):
     for c in df_impute.columns:
         if c != 'nomem_encr':
             df_impute.rename(columns={c: f'{c}_imputed'}, inplace=True)
+
     df_new = pd.merge(df_impute, df[feature_2020_notimpute+['nomem_encr']],  on = 'nomem_encr', how = 'inner')
 
     feature_super_gold  =  [    
@@ -191,12 +178,11 @@ def clean_df(df, background_df=None):
         'cf11d130', # 2011
         'cf09b130', # 2009
         'cf08a130', # 2008
-        ] 
+        ]   
 
     df_zero = imputation_cf20_130(feature_super_gold, train_df=df)
     df_negative = imputation_cf20_130_negative(feature_super_gold, train_df=df)
     df_super_gold_imputed = pd.merge(df_zero, df_negative, on = 'nomem_encr', how = 'inner')
-
     df2 = pd.merge(df_super_gold_imputed, df_new, on = 'nomem_encr', how = 'inner')
 
     # process background df
@@ -217,7 +203,7 @@ def clean_df(df, background_df=None):
     df2['cf20m032_imputed'] = df2['cf20m032_imputed'].replace({1: 'male', 2: 'female'})
     df3 = pd.merge(df2, background_df_processed['gender_ds'], on = 'nomem_encr', how='left')
     df3['same_sex_ds'] = df3['cf20m032_imputed'] == df3['gender_ds']
-    df3.drop(columns=['cf20m032', 'cf20m032_imputed', 'gender_ds'], inplace=True)
+    df3.drop(columns=['cf20m032_imputed', 'gender_ds'], inplace=True)
 
     # big five
     bigfive_df = personality_bigfive(train_df=df)
@@ -234,7 +220,7 @@ def clean_df(df, background_df=None):
 
     features = df.columns.tolist()
     df = df[features]
-
+    
     return df
 
 
