@@ -85,7 +85,7 @@ To examine wheter this approach was successful in improving the predictive power
 
 ![gas](./saved/tree_selection_2020_Imputed2.png)
 
-We can crearly see that this approach enhances the preditive power of many features, as many variables with low score in the previous tree selection plot appear to be relevant now. Despite that, we note that the variable with the highest score in the previous examination (cf20m130, "Within how many years do you hope to have your [first/next] child") has a much lower score now: this confirms our consideration that missing values contain relevant information and might actually be useful for prediction.
+We can clearly see that this approach enhances the preditive power of many features, as many variables with low score in the previous tree selection plot appear to be relevant now. Despite that, we note that the variable with the highest score in the previous examination (cf20m130, "Within how many years do you hope to have your [first/next] child") has a much lower score now: this confirms our consideration that missing values contain relevant information and might actually be useful for prediction.
 
 ### Background data
 
