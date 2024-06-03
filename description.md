@@ -23,10 +23,10 @@ All of our considerations will need to be confirmed or refused through appropria
 
 ## Data exploration
 
-The problem is a classification task and the final model will have to predict if a person will have a child in the next child within the following three years (2021-2023) based on the data including 2020. The initial dataset has 6,418 rows and 31,634 columns. 
+The problem is a classification task and the final model will have to predict if a person will have a child within the following three years (2021-2023) based on the data including 2020. The initial dataset has 6,418 rows and 31,634 columns. 
 Before starting our analysis we removed the rows where the outcome is not available and the columns which had all values missing to obtain a initial train set with 987 rows and 25,868 columns.
 
-In addition to the primary dataset, we also utilized the background dataset, which is structured in a longitudinal format. Each subject's information repeats across multiple rows, corresponding to the different years in which each question was posed. To align it with the main dataset, we filtered subjects with available outcomes, following the same approach used with the primary dataset. It's relevant to note that the background dataset contains information that we logically assumed to be the most important for predicting the likelihood of having a child (e.g. age, income, civil status).
+In addition to the primary dataset, we also utilized the background dataset, which is structured in a longitudinal format. Each subject's answers repeat across multiple rows, corresponding to the different years in which each question was posed. To align it with the main dataset, we filtered subjects with available outcomes, following the same approach used with the primary dataset. It's relevant to note that the background dataset contains information that we logically assumed to be the most important for predicting the likelihood of having a child (e.g. age, income, civil status).
 
 ### Tree selection
 
