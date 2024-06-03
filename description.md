@@ -31,7 +31,7 @@ In addition to the primary dataset, we also utilized the background dataset, whi
 ### Tree selection
 
 We decided to focus on the train set first and only afterwards on the background survey.
-Our initial aim was to craft a procedure which could test our initial hypothesis. The idea was to develop a quick and automatic way to assess with sustainable precision the marginal predictive power of every feature available. We decided to evaluate the predictive performance on the task of predicting ferility of a univariate model, using a stratified cross-validation with 5 folds and iterating over every feature available. The chosem model for this procedure was a decision tree, for several reasons: it can gracefully handle missing data, it's better suited with categorical/ordinal features stored as numbers that a linear method like logistic regression, and, last but not least, the optimized implementations available (together with the modest number of rows) allowed us to iterate across tens of thousands of features fairly quickly. The results are summarized below.
+Our initial aim was to craft a procedure which could test our initial hypothesis. The idea was to develop a quick and automatic way to assess with sustainable precision the marginal predictive power of every feature available. We decided to evaluate the predictive performance on the task of predicting ferility of a univariate model, using a stratified cross-validation with 5 folds and iterating over every feature available. The chosen model for this procedure was a decision tree, for several reasons: it can gracefully handle missing data, it's better suited with categorical/ordinal features stored as numbers that a linear method like logistic regression, and, last but not least, the optimized implementations available (together with the modest number of rows) allowed us to iterate across tens of thousands of features fairly quickly. The results are summarized below.
 
 ![gas](./saved/tree_selection_big_year.png)
 
@@ -39,7 +39,7 @@ The first plot show the values of the f1 metric for each feature available, orde
 
 ![gas](./saved/tree_selection_2020.png)
 
-Encouraged by this confirmation, we further explored the variables from the last year, 2020, using the univariate tree method. As observed in the graph below, except for the "Family & Household" survey, most surveys show only few features with notable predictive power. This confirms our earlier assumption that amongst the many feature available only few will be actually relevant for prediction.
+Encouraged by this confirmation, we further explored the variables from the last year, 2020, using the univariate tree method. As observed in the graph below, except for the "Family & Household" survey, most surveys show only few features with notable predictive power. This confirms our earlier assumption that amongst the many features available only few will be actually relevant for prediction.
 The table below shows the most significant variables:
 
 |       | feature        |   accuracy |   precision |   recall |   f1 | var_label                                                                   | survey                       |   year |
@@ -56,7 +56,7 @@ The table below shows the most significant variables:
 |    | cf20m029       |       0.77 |        0.46 |     0.23 | 0.29 | In what year did you start living together with your partner?               | Family & Household           |   2020 |
 
 
-As can be observed, the most relevant variables seem to be those related to the desire to have a child, as well as income, age and civil status. It's interesting to note that the variable that indicates whether the person goes to the gynaecologist seems to be a good predictor of fertility: it might allow to identify pregnant women. Overall, these variables not only make logical sense but are also partially aligned with our initial assumptions.
+As can be observed, the most relevant variables seem to be those related to the desire to have a child, as well as income, age and civil status. It's interesting to note that the variable that indicates whether the person goes to the gynaecologist seems to be a good predictor of fertility: one hypothesis is that it might allow to identify pregnant women. Overall, these variables not only make logical sense but are also partially aligned with our initial assumptions.
 
 ### Missing values
 
@@ -72,7 +72,7 @@ Given that many features had a lot of missing values, we opted for a quick analy
 
 This prompts us to consider a thoughtful approach to imputing missing data, despite acknowledging that even the indication of missing values in some variables may have utility in fertility modeling. 
 
-We developed an imputation strategy which is tailored to the longitudinal nature of survey variables. Beginning from 2020, for each variable containing missing values, we retrospectively examine earlier years for analogous variables asking the same question, imputing with the most recently observed value. Below is an illustrative example that demonstrates this method, displaying the resulting imputed values.
+We developed an imputation strategy which is tailored to the longitudinal nature of survey variables. Beginning from 2020, for each feature containing missing values, we retrospectively examine earlier years for analogous variables asking the same question, imputing with the most recently observed value. Below is an illustrative example that demonstrates this method, displaying the resulting imputed values.
 
 |    | quest2015   | quest2016   | quest2017   | quest2018   | quest2019   | quest2020   | quest2020_imp       |
 |----|-------------|-------------|-------------|-------------|-------------|-------------|----------------------|
@@ -81,7 +81,7 @@ We developed an imputation strategy which is tailored to the longitudinal nature
 |    | 2           |     --      |        --   |       --    |         --  |       --    | 2                    |
 |    |        --   |     --      |        --   |       --    |         --  |       --    |          --          |
 
-To examine wheter this approach was successful in improving the predictive power of our features, we conducted the tree selection procedure again on the newly imputed variables. The results are shown below:
+To examine wheter this approach was successful in improving the predictive power of our features, we run the tree selection procedure again on the newly imputed variables. The results are shown below:
 
 ![gas](./saved/tree_selection_2020_Imputed2.png)
 
