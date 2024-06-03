@@ -35,7 +35,7 @@ Our initial aim was to craft a procedure which could test our initial hypothesis
 
 ![gas](./saved/tree_selection_big_year.png)
 
-The first plot show the values of the f1 metric for each feature available, ordered by year of the survey. The black dotted line on the plot represents the f1 score of a randomly generated predictor variable, which serves as a ballpark baseline to evaluate the predictive power of our features. From the image we can clearly see that the preformance metric decreases over time, thereby validating our initial hypothesis regarding the growing importance of surveys from recent years.
+The first plot show the values of the f1 metric for each feature available, ordered by year of the survey. The black dotted line on the plot represents the f1 score of a randomly generated predictor variable, which serves as a ballpark baseline to evaluate the predictive power of our features. From the image we can clearly see that the preformance metric decreases over time, thereby validating our initial hypothesis regarding the higher relevance of surveys from recent years.
 
 ![gas](./saved/tree_selection_2020.png)
 
