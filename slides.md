@@ -1,16 +1,27 @@
 ---
 marp: true
 author: Simone Meneghello, Alessio Piraccini, Gianluca Tori
-size: 4:4
-theme: gaia
+size: 16:9
+theme: default
 title: PreFer data challenge
+paginate: True
+header: ODISSEI 2024, PreFer data challenge
+footer: Simone Meneghello, Alessio Piraccini, Gianluca Tori
+style: |
+  section {
+    font-size: 25px;
+  }
+  img {
+    width: 70%;
+    height: auto;
+  }
 ---
 
 # First slide :)
 
 ---
 
-# Initial considerations
+## Initial considerations
 
 - **Recent Data Priority**: Key insights for predicting fertility (2021-2023) likely stem from surveys around 2021. Older data may have weaker predictive power. Focus on recent surveys, supplemented by relevant past data.
   
@@ -22,7 +33,7 @@ title: PreFer data challenge
 
 ---
 
-# Data exploration
+## Data exploration
 
 - **Task Overview**: Classify if a person will have a child within 2021-2023 using 2020 data.
   
@@ -37,13 +48,13 @@ title: PreFer data challenge
 
 ---
 
-# Tree selection
+## Tree selection
 
 - Used a univariate decision tree with stratified 5-fold cross-validation for feature evaluation.
 - Decision tree chosen for handling missing data and categorical features efficiently.
 - Quick iteration over features due to optimized implementations and manageable data size.
 
-![gas](./saved/tree_selection_big_year.png)
+
 
 - Results show F1 scores by survey year, with a random predictor as a baseline.
 - Performance decreases over time, supporting the relevance of recent surveys.
@@ -52,18 +63,24 @@ title: PreFer data challenge
 
 ## Tree Selection: 2020 Focus
 
-- Further explored 2020 variables using the univariate tree method.
+![gas](./saved/tree_selection_big_year.png)
+
+---
+
+## Tree Selection
 
 ![gas](./saved/tree_selection_2020.png)
-
-- Most surveys, except "Family & Household," have few features with strong predictive power.
-- Confirms that only a few features are crucial for prediction.
 
 ---
 
 # Missing values
 
-Hi there!
+- **Nature of Missing Data**: Often due to survey logic or non-participation.
+- **Correlation with Response**: Missing data in key variables, like future child plans, often correlates with not having a child.
+- **Imputation Strategy**: Used a longitudinal approach, filling gaps with the most recent past responses.
+
+- **Re-evaluation**: Imputed variables were reassessed for predictive power.
+- **Results**: Many features showed improved predictive power, but some key variables lost predictive strength, highlighting the importance of missing data itself.
 
 ---
 
@@ -75,25 +92,19 @@ Hi there!
 
 # Exploratory data analysis
 
-Hi there!
-
-![gas](./saved/correlation_matrix.png)
-
----
-
-# Exploratory data analysis
-
-Hi there!
-
 ![gas](./saved/eda_feature_plots.png)
 
 ---
 
 # Exploratory data analysis
 
-Hi there!
+![gas](./saved/tree_selection_cleaned.png)
 
-![gas](./saved/eda_feature_plots.png)
+---
+
+# Exploratory data analysis
+
+Hi there!
 
 ---
 
@@ -105,15 +116,11 @@ Hi there!
 
 # Model interpretation
 
-Hi there!
-
 ![gas](./saved/shap_bar.png)
 
 ---
 
 # Model interpretation
-
-Hi there!
 
 ![gas](./saved/shap_scatter_plots.png)
 
