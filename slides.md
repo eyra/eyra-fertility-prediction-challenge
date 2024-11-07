@@ -6,7 +6,7 @@ theme: default
 title: PreFer data challenge
 paginate: True
 header: ODISSEI 2024, PreFer data challenge
-footer: Simone Meneghello, Alessio Piraccini, Gianluca Tori
+footer: Simone Meneghello, Alessio Piraccini, Gianluca Ivo Tori
 style: |
   section {
     font-size: 25px;
@@ -24,8 +24,9 @@ style: |
   }
 ---
 
+![bg 50% opacity:7%](./saved/PreFer_logo.png)
 # ODISSEI 2024, PreFer data challenge
-*Simone Meneghello, Alessio Piraccini, Gianluca Tori*
+*Simone Meneghello, Alessio Piraccini, Gianluca Ivo Tori*
 
 ---
 
@@ -80,9 +81,14 @@ style: |
 - missing data can often be attributed to *survey logic* or *non-participation*
 - missing data in key variables, like *future child plans*, often correlates with not having a child
 
-We used a **longitudinal** approach for imputation, filling gaps with the most recent past responses. After reassessing imputed variables for predictive power we saw that:
-- many features showed improved predictive power
-- some key variables lost predictive strength, highlighting the importance of missing data itself
+We used a **longitudinal** approach for imputation, filling gaps with the most recent past responses.
+<br>
+
+| quest2015   | quest2016   | quest2017   | quest2018   | quest2019   | quest2020   | quest2020_imp       |
+|-------------|-------------|-------------|-------------|-------------|-------------|----------------------|
+| 4         |     --      | 4           |       --    | 5           | 5         | 5                  |
+|        --   |     --      | 5           |       3     |        --   |        --   | 3                    |
+| 2           |     --      |        --   |       --    |         --  |       --    | 2                    |
 
 ---
 
@@ -97,7 +103,7 @@ We used a **longitudinal** approach for imputation, filling gaps with the most r
 
 ## Exploratory data analysis
 
-![](./saved/eda_feature_plots.png)
+![bg 90%](./saved/eda_feature_plots.png)
 
 ---
 
@@ -175,4 +181,5 @@ We used a **longitudinal** approach for imputation, filling gaps with the most r
 
 ---
 
+![bg 50% opacity:7%](./saved/PreFer_logo.png)
 # Thank you for your attention!
